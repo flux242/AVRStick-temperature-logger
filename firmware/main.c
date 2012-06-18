@@ -245,17 +245,24 @@ static void timerPoll(void)
   if(TIFR & (1 << TOV1))
   {  //This flag is triggered at 60 hz.
     TIFR = (1 << TOV1); /* clear overflow */
-    if(++timerCnt > 61) // once per 2 sec
+    if(++timerCnt > 61)
     {
       timerCnt = 0;
       ++seconds;
-      adcPending = 1;
 
-      /* logic 1 (5v) on pb1 */
-      DDRB |= _BV(WHITE_LED);
-      sbi(PORTB, WHITE_LED);
+      if (seconds%2)
+      {
+        // do conversion once per 2 seconds
+        // it doesn't make sense to do it more often because
+        // thermistor response time is 1.2-1.5 sec anyway
+        adcPending = 1;
 
-      ADCSRA |= (1 << ADSC);  /* start next conversion */
+        /* logic 1 (5v) on pb1 */
+        DDRB |= _BV(WHITE_LED);
+        sbi(PORTB, WHITE_LED);
+
+        ADCSRA |= (1 << ADSC);  /* start next conversion */
+      }
     }
   }
 }
