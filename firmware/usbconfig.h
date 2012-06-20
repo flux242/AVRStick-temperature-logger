@@ -255,4 +255,17 @@ extern void usbEventResetReady(void);
 /* #define USB_INTR_PENDING        GIFR */
 /* #define USB_INTR_PENDING_BIT    INTF0 */
 
+/* Defines below are to select -D line as interrupt souce*/
+//#define USB_INTR_CFG            PCMSK
+//#define USB_INTR_CFG_SET        1 << PCINT0
+//#define USB_INTR_ENABLE_BIT     PCIE
+//#define USB_INTR_PENDING_BIT    PCIF
+//#define USB_INTR_VECTOR         PCINT0_vect
+
+//#define USB_COUNT_SOF         1
+/* define this macro to 1 if you need the global variable "usbSofCount" which
+ * counts SOF packets. This feature requires that the hardware interrupt is
+ * connected to D- instead of D+.
+ */
+
 #endif /* __usbconfig_h_included__ */

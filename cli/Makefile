@@ -2,7 +2,7 @@ IDIR =./
 CC=gcc -Wall
 CFLAGS=-I$(IDIR)
 
-ODIR=obj
+ODIR=
 LDIR =../lib
 
 LIBS=
@@ -11,7 +11,7 @@ _DEPS =
 DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
 
 _OBJ = readavrstick.o 
-OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
+OBJ = $(patsubst %,$(ODIR)%,$(_OBJ))
 
 
 $(ODIR)/%.o: %.c $(DEPS)
