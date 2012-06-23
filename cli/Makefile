@@ -18,7 +18,7 @@ $(ODIR)/%.o: %.c $(DEPS)
 		$(CC) -c -o $@ $< $(CFLAGS)
 
 readavrstick: $(OBJ)
-		gcc -o $@ $^ $(CFLAGS) $(LIBS)
+		$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
 
 .PHONY: clean
 
