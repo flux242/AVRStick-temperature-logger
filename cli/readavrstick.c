@@ -99,7 +99,7 @@ int readTemperature(const char* devName)
     if (-1==ioctl(fd, EVIOCGRAB, 1))
     {
       error = errno;
-      printf("Error grabbing device %s. Error: %s\n", devName, strerror(error));
+      fprintf(stderr, "Error grabbing device %s. Error: %s\n", devName, strerror(error));
     }
     else
     {
@@ -126,7 +126,7 @@ int readTemperature(const char* devName)
         if (readBytes<sizeof(struct input_event))
         {
           error = errno;
-          printf("Error reading from device %s. Error: %s\n", devName, strerror(error));
+          fprintf(stderr, "Error reading from device %s. Error: %s\n", devName, strerror(error));
           break;
         }
         if (EV_KEY==ev.type && 1==ev.value)
@@ -167,7 +167,7 @@ int readTemperature(const char* devName)
   else
   {
     error = errno;
-    printf("Device %s canno't be opened. Error: %s\n", devName, strerror(error));
+    fprintf(stderr, "Device %s canno't be opened. Error: %s\n", devName, strerror(error));
   }
 
   close(fd);
@@ -185,7 +185,7 @@ int main(int argc, char** argv)
   }
   else
   {
-    printf("No device found with vendor id=%s and product id=%s\n", VENDOR, PRODUCT);
+    fprintf(stderr, "No device found with vendor id=%s and product id=%s\n", VENDOR, PRODUCT);
     return(1);
   }
 }
