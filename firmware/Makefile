@@ -8,12 +8,13 @@
 # This Revision: $Id: Makefile 362 2007-06-25 14:38:21Z cs $
 
 DEVICE=attiny85
-AVRDUDE = avrdude -c usbtiny -B 1 -p $(DEVICE)
+F_CPU = 16500000
+AVRDUDE = avrdude -c USBasp -B 1 -p $(DEVICE)
 # The two lines above are for "avrdude" and the STK500 programmer connected
 # to an USB to serial converter to a Mac running Mac OS X.
 # Choose your favorite programmer and interface.
 
-COMPILE = avr-gcc -Wall -Os -Iusbdrv -I. -mmcu=$(DEVICE) -DF_CPU=16500000 -DDEBUG_LEVEL=0
+COMPILE = avr-gcc -Wall -Os -Iusbdrv -I. -mmcu=$(DEVICE) -DF_CPU=$(F_CPU) -DDEBUG_LEVEL=0
 # NEVER compile the final product with debugging! Any debug output will
 # distort timing so that the specs can't be met.
 

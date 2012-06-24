@@ -232,7 +232,7 @@ static void adcPoll(void)
   if(adcPending && !(ADCSRA & (1 << ADSC)))
   {
     adcPending = 0;
-    cbi(PORTB, WHITE_LED); // logic 0 on pb1 
+    cbi(PORTB, YELLOW_LED); // logic 0 on pb3 
     currentADCVal = ADC;
   }
 }
@@ -257,9 +257,9 @@ static void timerPoll(void)
         // thermistor response time is 1.2-1.5 sec anyway
         adcPending = 1;
 
-        /* logic 1 (5v) on pb1 */
-        DDRB |= _BV(WHITE_LED);
-        sbi(PORTB, WHITE_LED);
+        /* logic 1 (5v) on pb3 */
+        DDRB |= _BV(YELLOW_LED);
+        sbi(PORTB, YELLOW_LED);
 
         ADCSRA |= (1 << ADSC);  /* start next conversion */
       }
