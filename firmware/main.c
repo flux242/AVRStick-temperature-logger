@@ -111,6 +111,7 @@ static uchar    *nextDigit=0;
 static unsigned currentADCVal = 0;
 static unsigned seconds = 0;
 static unsigned rateSeconds = 0;
+static uchar    doAdcToTemp = 1;
 
 /* ------------------------------------------------------------------------- */
 
@@ -206,19 +207,22 @@ static void writeDigitToBuffer(int value)
 /* ------------------------------------------------------------------------- */
 static void convertADC(unsigned value)
 {
-
-  Fraction fract;
-  
-  convertADCToTemp(value, &fract);
-  
   nextDigit = &valueBuffer[sizeof(valueBuffer)];  //The Buffer is constructed 'backwards,' so point to the end of the Value Buffer before adding the values.
   *--nextDigit = 0xFF;
   *--nextDigit = 0;
   *--nextDigit = KEY_RETURN;
-  writeDigitToBuffer(fract.rem);
-  *--nextDigit = 0;
-  *--nextDigit = KEY_POINT;
-  writeDigitToBuffer(fract.quot);
+  if (doAdcToTemp)
+  {
+    Fraction fract;
+    convertADCToTemp(value, &fract);
+    writeDigitToBuffer(fract.rem);
+    *--nextDigit = 0;
+    *--nextDigit = KEY_POINT;
+    writeDigitToBuffer(fract.quot);
+  }
+  else
+    writeDigitToBuffer(value);
+
   // two zeros below are added to fix strange linux specific
   // problem that the first key is received twice
   *--nextDigit = 0;
