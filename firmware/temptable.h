@@ -11,7 +11,7 @@ typedef struct
   char         temp;
 } TempTableStruct;
 
-extern TempTableStruct tempTable[];
-extern unsigned tempTableSize;
+extern const TempTableStruct tempTable[];
+extern const unsigned char tempTableSize;
 
 #endif

@@ -1,6 +1,7 @@
 #include "temptable.h"
+#include <avr/pgmspace.h>
 
-TempTableStruct tempTable[] = {
+const TempTableStruct tempTable[] PROGMEM = {
     /* 2.56V ref * 0.909, 2.33V stab */
     {62,	4,	-28},
     {82,	5,	-23},
@@ -20,5 +21,5 @@ TempTableStruct tempTable[] = {
     {903,	3,	78},
 };
 
-unsigned tempTableSize = sizeof(tempTable)/sizeof(tempTable[0]);
+const unsigned char tempTableSize = sizeof(tempTable)/sizeof(TempTableStruct);
 

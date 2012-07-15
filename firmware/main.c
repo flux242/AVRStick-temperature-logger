@@ -31,6 +31,11 @@ PB1 = LED output
 PB0, PB2 = USB data lines
 */
 
+// compile with -DNOADC2TEMP to log raw ADC value
+#ifndef  NOADC2TEMP
+#define  ADC2TEMP
+#endif
+
 #define WHITE_LED  1
 #define YELLOW_LED 3
 
@@ -44,6 +49,9 @@ PB0, PB2 = USB data lines
 #define NULL    ((void *)0)
 #endif
 
+#ifndef uint
+#define uint    unsigned int
+#endif
 /* ------------------------------------------------------------------------- */
 
 // USB HID report descriptor for boot protocol keyboard
@@ -105,14 +113,10 @@ static uint8_t protocol_version = 0; // see HID1_11.pdf sect 7.2.6
 static uint8_t LED_state = 0; // see HID1_11.pdf appendix B section 1
 static uint8_t blink_count = 0; // keep track of how many times caps lock have toggled
 
-static uchar    adcPending;
+static uchar    adcPending = 0;
 static uchar    valueBuffer[16];
 static uchar    *nextDigit=0;
-static unsigned currentADCVal = 0;
-static unsigned seconds = 0;
-static unsigned rateSeconds = 0;
-static uchar    doAdcToTemp = 1;
-
+static uchar    seconds = 0;
 /* ------------------------------------------------------------------------- */
 
 /* Keyboard usage values, see usb.org's HID-usage-tables document, chapter
@@ -155,25 +159,29 @@ static uchar    doAdcToTemp = 1;
 static void convertADCToTemp(unsigned value, Fraction* fract)
 {
   uchar i;
-  //static uchar tSize = sizeof(tempTable)/sizeof(tempTable[0]);
   
   for (i=0;i<tempTableSize; ++i)
   {
-    if (value<tempTable[i].adcVal)
+    uint adcValue = (pgm_read_word(&tempTable[i].adcVal));
+    if (value<adcValue)
       break;
   }
   
   if (i==0)
-  {
-    fract->quot = tempTable[0].temp - ((tempTable[0].adcVal - value) / tempTable[0].step);
-    fract->rem = (10*((tempTable[0].adcVal - value) % tempTable[0].step))/tempTable[0].step;
+  { // value is below the first table entry
+    uint adcVal = (pgm_read_word(&tempTable[0].adcVal));
+    char temp =   (pgm_read_byte(&tempTable[0].temp));
+    char step =   (pgm_read_byte(&tempTable[0].step));
+    fract->quot = temp - ((adcVal - value) / step);
+    fract->rem = (10*((adcVal - value) % step))/step;
   }
   else 
   {
-    if (i==tempTableSize-1)
-      ++i;
-    fract->quot = tempTable[i-1].temp + ((value-tempTable[i-1].adcVal) / tempTable[i-1].step);
-    fract->rem = (10*((value-tempTable[i-1].adcVal) % tempTable[i-1].step))/tempTable[i-1].step;
+    uint adcVal = (pgm_read_word(&tempTable[--i].adcVal));
+    char temp =   (pgm_read_byte(&tempTable[i].temp));
+    char step =   (pgm_read_byte(&tempTable[i].step));
+    fract->quot = temp + ((value-adcVal) / step);
+    fract->rem = (10*((value-adcVal) % step))/step;
   }
 }
 
@@ -197,7 +205,7 @@ static void writeDigitToBuffer(int value)
     else
       *--nextDigit = KEY_1 - 1 + digit;
   } while(value != 0);
-  if (negative==1)
+  if (negative)
   {
     *--nextDigit = 0;
     *--nextDigit = KEY_MINUS;
@@ -211,18 +219,16 @@ static void convertADC(unsigned value)
   *--nextDigit = 0xFF;
   *--nextDigit = 0;
   *--nextDigit = KEY_RETURN;
-  if (doAdcToTemp)
-  {
-    Fraction fract;
-    convertADCToTemp(value, &fract);
-    writeDigitToBuffer(fract.rem);
-    *--nextDigit = 0;
-    *--nextDigit = KEY_POINT;
-    writeDigitToBuffer(fract.quot);
-  }
-  else
-    writeDigitToBuffer(value);
-
+#ifdef ADC2TEMP
+  Fraction fract;
+  convertADCToTemp(value, &fract);
+  writeDigitToBuffer(fract.rem);
+  *--nextDigit = 0;
+  *--nextDigit = KEY_POINT;
+  writeDigitToBuffer(fract.quot);
+#else
+  writeDigitToBuffer(value);
+#endif
   // two zeros below are added to fix strange linux specific
   // problem that the first key is received twice
   *--nextDigit = 0;
@@ -230,15 +236,27 @@ static void convertADC(unsigned value)
 }
 
 /* ------------------------------------------------------------------------- */
+static inline void startADC()
+{
+  adcPending = 1;
 
-static void adcPoll(void)
+  /* logic 1 (5v) on pb3 */
+  DDRB |= _BV(YELLOW_LED);
+  sbi(PORTB, YELLOW_LED);
+
+  ADCSRA |= (1 << ADSC);  /* start next conversion */
+}
+
+static char adcPoll(void)
 {
   if(adcPending && !(ADCSRA & (1 << ADSC)))
   {
     adcPending = 0;
     cbi(PORTB, YELLOW_LED); // logic 0 on pb3 
-    currentADCVal = ADC;
+    return 1;
   }
+
+  return 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -253,32 +271,18 @@ static void timerPoll(void)
     {
       timerCnt = 0;
       ++seconds;
-
-      if (seconds%2)
-      {
-        // do conversion once per 2 seconds
-        // it doesn't make sense to do it more often because
-        // thermistor response time is 1.2-1.5 sec anyway
-        adcPending = 1;
-
-        /* logic 1 (5v) on pb3 */
-        DDRB |= _BV(YELLOW_LED);
-        sbi(PORTB, YELLOW_LED);
-
-        ADCSRA |= (1 << ADSC);  /* start next conversion */
-      }
     }
   }
 }
 
 /* ------------------------------------------------------------------------- */
-static void timerInit(void)
+static inline void timerInit(void)
 {
   TCCR1 = 0x0b;           /* select clock: 16.5M/1k -> overflow rate = 16.5M/256k = 62.94 Hz */
 }
 
 /* ------------------------------------------------------------------------- */
-static void adcInit(void)
+static inline void adcInit(void)
 {
   ADMUX = UTIL_BIN8(1001, 0010);  /* vref = 2.56V, measure ADC2 (PB4) */
   ADCSRA = UTIL_BIN8(1000, 0111); /* enable ADC, not free running, interrupt disable, rate = 1/128 */
@@ -339,34 +343,20 @@ usbMsgLen_t usbFunctionWrite(uint8_t * data, uchar len)
    uint8_t mask = data[0] ^ LED_state;
    if ( bit_is_set(mask, 2) ) // only if scroll lock is pressed 2 times
    {
+     if (!blink_count)
+       seconds = 0;
      // increment count when LED has toggled
-     if ((seconds - rateSeconds)>1)
-     {
+     if (seconds > 1)
        blink_count = 0;
-       rateSeconds = seconds;
-     }
+     
      ++blink_count;
    }
    
    LED_state = data[0];
-
-/*
-  this debug code should not be used on the final
-  device because current in the led influences ADC measures.
-  if (bit_is_set(LED_state, 1))
-  {
-    DDRB |= _BV(YELLOW_LED);
-    sbi(PORTB, YELLOW_LED);
-  }
-  else
-  {
-    cbi(PORTB, YELLOW_LED);
-  }
-*/   
+  
    if (blink_count>=2)
    {
-     if ((seconds - rateSeconds)<=1)
-       convertADC(currentADCVal);
+     startADC(); // start ADC only if two presses within 1 sec
      blink_count = 0;
    }
 
@@ -487,10 +477,14 @@ int main(void)
       buildReport(*nextDigit, 0);
       usbSetInterrupt((uchar*)&keyboard_report, sizeof(keyboard_report)); // send
       if (0xFF == *++nextDigit)
-      nextDigit = NULL;
+        nextDigit = NULL;
     }
-    timerPoll();  //Check timer to see if it's time to start another ADC conversion.
-    adcPoll();    //If an ADC conversion was started, get the value and switch to the other ADC channel for the next conversion.
+    timerPoll();
+    if (adcPoll())
+    {
+      unsigned adcVal = ADC;
+      convertADC(adcVal);
+    }
   }
   return 0;
 }
