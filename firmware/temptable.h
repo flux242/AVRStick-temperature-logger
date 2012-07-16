@@ -6,7 +6,7 @@
 ****************************************************************************/
 typedef struct 
 {
-  unsigned int adcVal;
+  int          adcVal;
   char         step;
   char         temp;
 } TempTableStruct;

@@ -154,9 +154,10 @@ static uchar    seconds = 0;
 #define KEY_F        9
 
 
+#define diff(c1, c2) (c1>c2?(c1-c2):(c2-c1))
 
 /* ------------------------------------------------------------------------- */
-static void convertADCToTemp(unsigned value, Fraction* fract)
+static void convertADCToTemp(int value, Fraction* fract)
 {
   uchar i;
   
@@ -166,23 +167,15 @@ static void convertADCToTemp(unsigned value, Fraction* fract)
     if (value<adcValue)
       break;
   }
+ 
+  if (i) --i;
+
+  uint adcVal = (pgm_read_word(&tempTable[i].adcVal));
+  char temp =   (pgm_read_byte(&tempTable[i].temp));
+  char step =   (pgm_read_byte(&tempTable[i].step));
   
-  if (i==0)
-  { // value is below the first table entry
-    uint adcVal = (pgm_read_word(&tempTable[0].adcVal));
-    char temp =   (pgm_read_byte(&tempTable[0].temp));
-    char step =   (pgm_read_byte(&tempTable[0].step));
-    fract->quot = temp - ((adcVal - value) / step);
-    fract->rem = (10*((adcVal - value) % step))/step;
-  }
-  else 
-  {
-    uint adcVal = (pgm_read_word(&tempTable[--i].adcVal));
-    char temp =   (pgm_read_byte(&tempTable[i].temp));
-    char step =   (pgm_read_byte(&tempTable[i].step));
-    fract->quot = temp + ((value-adcVal) / step);
-    fract->rem = (10*((value-adcVal) % step))/step;
-  }
+  fract->quot = temp + ((value-adcVal) / step);
+  fract->rem = (10*(diff(value,adcVal) % step))/step;
 }
 
 static void writeDigitToBuffer(int value)
@@ -213,7 +206,7 @@ static void writeDigitToBuffer(int value)
 }
 
 /* ------------------------------------------------------------------------- */
-static void convertADC(unsigned value)
+static void convertADC(int value)
 {
   nextDigit = &valueBuffer[sizeof(valueBuffer)];  //The Buffer is constructed 'backwards,' so point to the end of the Value Buffer before adding the values.
   *--nextDigit = 0xFF;
@@ -247,7 +240,7 @@ static inline void startADC()
   ADCSRA |= (1 << ADSC);  /* start next conversion */
 }
 
-static char adcPoll(void)
+static inline char adcPoll(void)
 {
   if(adcPending && !(ADCSRA & (1 << ADSC)))
   {
@@ -260,13 +253,13 @@ static char adcPoll(void)
 }
 
 /* ------------------------------------------------------------------------- */
-static void timerPoll(void)
+static inline void timerPoll(void)
 {
   static uchar timerCnt;
 
-  if(TIFR & (1 << TOV1))
+  if(bit_is_set(TIFR,TOV1))
   {  //This flag is triggered at 60 hz.
-    TIFR = (1 << TOV1); /* clear overflow */
+    TIFR = _BV(TOV1); /* clear overflow */
     if(++timerCnt > 61)
     {
       timerCnt = 0;
@@ -481,10 +474,7 @@ int main(void)
     }
     timerPoll();
     if (adcPoll())
-    {
-      unsigned adcVal = ADC;
-      convertADC(adcVal);
-    }
+      convertADC((int)ADC);
   }
   return 0;
 }
