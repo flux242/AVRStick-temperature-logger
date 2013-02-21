@@ -105,7 +105,7 @@ int readTemperature(const char* devName)
     {
       memset(&ev, 0, sizeof(ev));
       ev.type = EV_LED;
-      ev.code = LED_SCROLLL;
+      ev.code = LED_CAPSL;
       ev.value = 1;
       write(fd, &ev, sizeof(ev));
       ev.value = 0;

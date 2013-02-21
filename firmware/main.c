@@ -338,17 +338,34 @@ usbMsgLen_t usbFunctionSetup(uint8_t data[8])
    }
 }
 
+/***********************************
+ data[0] bits meaning
+ 0 NUM LOCK
+ 1 CAPS LOCK
+ 2 SCROLL LOCK
+ 3 COMPOSE
+ 4 KANA
+ 5 to 7 CONSTANT
+***********************************/
 usbMsgLen_t usbFunctionWrite(uint8_t * data, uchar len)
 {
+   /*
+    * Start ADC only if caps lock is pressed 2 times
+    * within 2 seconds.
+    */
    uint8_t mask = data[0] ^ LED_state;
-   if ( bit_is_set(mask, 2) ) // only if scroll lock is pressed 2 times
+   if ( bit_is_set(mask, 1) ) // only if caps lock is pressed 
    {
+     // increment counter when LED has toggled
+     if (seconds > 1)
+     {
+       blink_count = 0;
+       LED_state = 0;
+     } 
+
      if (!blink_count)
        seconds = 0;
-     // increment count when LED has toggled
-     if (seconds > 1)
-       blink_count = 0;
-     
+ 
      ++blink_count;
    }
    
